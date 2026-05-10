@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Visual Clock - 精致日程时钟</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #12162a;
+            --clock-face: #1a1f35;
+            --clock-face-light: #252b45;
+            --gold: #c4a35a;
+            --gold-light: #d4b876;
+            --silver: #b8c4d0;
+            --red: #d45a5a;
+            --text-primary: #f5f0eb;
+            --text-secondary: rgba(245, 240, 235, 0.6);
+            --glass: rgba(255, 255, 255, 0.03);
+        }
+
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--text-primary);
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(ellipse at 50% 0%, rgba(196, 163, 90, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(74, 144, 217, 0.05) 0%, transparent 40%),
+                radial-gradient(ellipse at 20% 90%, rgba(232, 168, 124, 0.05) 0%, transparent 40%);
+        }
+
+        .header {
+            text-align: center;
+            padding: 24px 20px 12px;
+            width: 100%;
+        }
+
+        .header h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.6rem;
+            font-weight: 500;
+            color: var(--gold);
+            letter-spacing: 2px;
+            margin-bottom: 4px;
+        }
+
+        .header .date {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 300;
+        }
+
+        .clock-container {
+            position: relative;
+            width: 100%;
+            max-width: 420px;
+            aspect-ratio: 1;
+            margin: 10px auto;
+            padding: 20px;
+        }
+
+        .clock-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, transparent 50%);
+            box-shadow: 
+                0 0 60px rgba(0, 0, 0, 0.5),
+                inset 0 0 30px rgba(0, 0, 0, 0.3),
+                0 0 2px rgba(196, 163, 90, 0.3);
+        }
+
+        .clock-wrapper::before {
+            content: '';
+            position: absolute;
+            inset: -3px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--gold) 0%, rgba(196, 163, 90, 0.3) 50%, var(--gold) 100%);
+            z-index: -1;
+        }
+
+        #clockCanvas {
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .mode-toggle {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            width: 50px;
+            height: 26px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(196, 163, 90, 0.3);
+        }
+
+        .mode-toggle::after {
+            content: '12H';
+            position: absolute;
+            left: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 9px;
+            font-weight: 600;
+            color: var(--gold);
+            transition: all 0.3s ease;
+        }
+
+        .mode-toggle.active {
+            background: rgba(196, 163, 90, 0.3);
+        }
+
+        .mode-toggle.active::after {
+            content: '24H';
+            left: auto;
+            right: 6px;
+        }
+
+        .add-btn {
+            position: absolute;
+            bottom: 25px;
+            right: 25px;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, var(--gold), var(--gold-light));
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(196, 163, 90, 0.4);
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+
+        .add-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(196, 163, 90, 0.6);
+        }
+
+        .add-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: var(--bg-primary);
+        }
+
+        .events-section {
+            width: 100%;
+            max-width: 420px;
+            padding: 0 20px 30px;
+        }
+
+        .events-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(196, 163, 90, 0.2);
+        }
+
+        .events-header h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--gold);
+        }
+
+        .events-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .event-card {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .event-card:hover {
+            background: rgba(255,255,255,0.06);
+            border-color: rgba(196, 163, 90, 0.2);
+        }
+
+        .event-card.active {
+            background: rgba(196, 163, 90, 0.1);
+            border-color: rgba(196, 163, 90, 0.3);
+        }
+
+        .event-color {
+            width: 4px;
+            height: 36px;
+            border-radius: 2px;
+            margin-right: 14px;
+            flex-shrink: 0;
+        }
+
+        .event-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .event-title {
+            font-size: 0.95rem;
+            font-weight: 500;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .event-time {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .event-actions {
+            display: flex;
+            gap: 8px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .event-card:hover .event-actions {
+            opacity: 1;
+        }
+
+        .event-action-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .event-action-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .event-action-btn.delete:hover {
+            background: rgba(212, 90, 90, 0.3);
+        }
+
+        .event-action-btn svg {
+            width: 14px;
+            height: 14px;
+            fill: var(--text-secondary);
+        }
+
+        .event-action-btn.delete svg {
+            fill: var(--red);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            width: 100%;
+            max-width: 380px;
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            padding: 28px;
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+            border: 1px solid rgba(196, 163, 90, 0.2);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+
+        .modal-overlay.active .modal {
+            transform: translateY(0);
+        }
+
+        .modal h3 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.3rem;
+            color: var(--gold);
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--gold);
+            background: rgba(196, 163, 90, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .time-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .time-input-group {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .time-input-group input {
+            width: 60px;
+            text-align: center;
+        }
+
+        .time-input-group span {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .category-btns {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .category-btn {
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.05);
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .category-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .category-btn.active {
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+
+        .category-btn[data-category="work"].active { background: rgba(74, 144, 217, 0.2); border-color: #4a90d9; color: #4a90d9; }
+        .category-btn[data-category="life"].active { background: rgba(232, 168, 124, 0.2); border-color: #e8a87c; color: #e8a87c; }
+        .category-btn[data-category="study"].active { background: rgba(126, 200, 160, 0.2); border-color: #7ec8a0; color: #7ec8a0; }
+        .category-btn[data-category="exercise"].active { background: rgba(212, 165, 229, 0.2); border-color: #d4a5e5; color: #d4a5e5; }
+        .category-btn[data-category="other"].active { background: rgba(240, 201, 135, 0.2); border-color: #f0c987; color: #f0c987; }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 28px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .btn-cancel {
+            background: rgba(255,255,255,0.1);
+            color: var(--text-secondary);
+        }
+
+        .btn-cancel:hover {
+            background: rgba(255,255,255,0.15);
+        }
+
+        .btn-save {
+            background: linear-gradient(145deg, var(--gold), var(--gold-light));
+            color: var(--bg-primary);
+        }
+
+        .btn-save:hover {
+            box-shadow: 0 4px 15px rgba(196, 163, 90, 0.4);
+        }
+
+        .btn-delete {
+            background: rgba(212, 90, 90, 0.2);
+            color: var(--red);
+            flex: 0.5;
+        }
+
+        .btn-delete:hover {
+            background: rgba(212, 90, 90, 0.3);
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: fixed;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border: 1px solid rgba(196, 163, 90, 0.3);
+            border-radius: 10px;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.2s;
+            max-width: 220px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+        }
+
+        .tooltip.visible {
+            opacity: 1;
+        }
+
+        .tooltip-title {
+            font-weight: 500;
+            margin-bottom: 4px;
+            font-size: 0.95rem;
+        }
+
+        .tooltip-time {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .tooltip-note {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 6px;
+            font-style: italic;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            justify-content: center;
+            padding: 0 20px 20px;
+            max-width: 420px;
+            margin: 0 auto;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.4rem;
+            }
+            
+            .clock-container {
+                max-width: 340px;
+                padding: 15px;
+            }
+            
+            .mode-toggle {
+                top: 20px;
+                right: 20px;
+                width: 44px;
+                height: 24px;
+            }
+            
+            .add-btn {
+                width: 44px;
+                height: 44px;
+                bottom: 20px;
+                right: 20px;
+            }
+            
+            .events-section {
+                max-width: 340px;
+            }
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        .loading {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(196, 163, 90, 0.2);
+            border-top-color: var(--gold);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <header class="header">
+        <h1>VISUAL CLOCK</h1>
+        <div class="date" id="currentDate"></div>
+    </header>
+
+    <div class="clock-container">
+        <div class="clock-wrapper">
+            <canvas id="clockCanvas"></canvas>
+        </div>
+        <div class="mode-toggle" id="modeToggle" title="切换12/24小时制"></div>
+        <button class="add-btn" id="addBtn" title="添加事件">
+            <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        </button>
+    </div>
+
+    <div class="legend" id="legend"></div>
+
+    <section class="events-section">
+        <div class="events-header">
+            <h2>今日日程</h2>
+        </div>
+        <div class="events-list" id="eventsList"></div>
+    </section>
+
+    <div class="tooltip" id="tooltip">
+        <div class="tooltip-title"></div>
+        <div class="tooltip-time"></div>
+        <div class="tooltip-note"></div>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <h3 id="modalTitle">添加事件</h3>
+            <div class="form-group">
+                <label>事件名称</label>
+                <input type="text" id="eventTitle" placeholder="输入事件名称..." maxlength="30">
+            </div>
+            <div class="form-group">
+                <label>时间段</label>
+                <div class="time-inputs">
+                    <div class="time-input-group">
+                        <input type="number" id="startHour" min="0" max="23" value="9">
+                        <span>:</span>
+                        <input type="number" id="startMin" min="0" max="59" value="0" step="5">
+                    </div>
+                    <div class="time-input-group">
+                        <input type="number" id="endHour" min="0" max="23" value="10">
+                        <span>:</span>
+                        <input type="number" id="endMin" min="0" max="59" value="0" step="5">
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>分类</label>
+                <div class="category-btns">
+                    <button class="category-btn active" data-category="work">工作</button>
+                    <button class="category-btn" data-category="life">生活</button>
+                    <button class="category-btn" data-category="study">学习</button>
+                    <button class="category-btn" data-category="exercise">运动</button>
+                    <button class="category-btn" data-category="other">其他</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>备注</label>
+                <textarea id="eventNote" placeholder="添加备注..." maxlength="100"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-cancel" id="btnCancel">取消</button>
+                <button class="btn btn-delete" id="btnDelete" style="display:none;">删除</button>
+                <button class="btn btn-save" id="btnSave">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Category colors
+        const CATEGORY_COLORS = {
+            work: '#4a90d9',
+            life: '#e8a87c',
+            study: '#7ec8a0',
+            exercise: '#d4a5e5',
+            other: '#f0c987'
+        };
+
+        const CATEGORY_NAMES = {
+            work: '工作',
+            life: '生活',
+            study: '学习',
+            exercise: '运动',
+            other: '其他'
+        };
+
+        // Default events
+        const DEFAULT_EVENTS = [
+            { id: 1, title: '晨间咖啡', startHour: 7, startMin: 0, endHour: 7, endMin: 30, category: 'life', note: '享受宁静的早晨时光' },
+            { id: 2, title: '通勤', startHour: 8, startMin: 30, endHour: 9, endMin: 0, category: 'life', note: '' },
+            { id: 3, title: '晨会', startHour: 9, startMin: 0, endHour: 10, endMin: 30, category: 'work', note: '团队同步进度' },
+            { id: 4, title: '深度编码', startHour: 10, startMin: 30, endHour: 12, endMin: 0, category: 'work', note: '专注开发新功能' },
+            { id: 5, title: '午休', startHour: 12, startMin: 0, endHour: 13, endMin: 30, category: 'life', note: '午餐与休息' },
+            { id: 6, title: '代码审查', startHour: 14, startMin: 0, endHour: 16, endMin: 0, category: 'study', note: 'Review Pull Requests' },
+            { id: 7, title: '团队协作', startHour: 16, startMin: 0, endHour: 17, endMin: 30, category: 'work', note: '' },
+            { id: 8, title: '晚间散步', startHour: 19, startMin: 0, endHour: 20, endMin: 0, category: 'exercise', note: '5公里有氧运动' },
+            { id: 9, title: '阅读时光', startHour: 21, startMin: 0, endHour: 22, endMin: 0, category: 'study', note: '技术书籍与小说' }
+        ];
+
+        // State
+        let events = [];
+        let is24Hour = false;
+        let editingEventId = null;
+        let hoveredEventId = null;
+        let canvas, ctx;
+        let clockRadius, centerX, centerY;
+        let animationId;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            init();
+        });
+
+        function init() {
+            loadEvents();
+            setupCanvas();
+            setupEventListeners();
+            updateDate();
+            renderLegend();
+            startClock();
+            
+            setTimeout(() => {
+                document.getElementById('loading').classList.add('hidden');
+            }, 500);
+        }
+
+        function loadEvents() {
+            const stored = localStorage.getItem('visualClockEvents');
+            if (stored) {
+                events = JSON.parse(stored);
+            } else {
+                events = [...DEFAULT_EVENTS];
+                saveEvents();
+            }
+        }
+
+        function saveEvents() {
+            localStorage.setItem('visualClockEvents', JSON.stringify(events));
+            renderEventsList();
+        }
+
+        function setupCanvas() {
+            canvas = document.getElementById('clockCanvas');
+            ctx = canvas.getContext('2d');
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+        }
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const size = Math.min(container.clientWidth, container.clientHeight);
+            const dpr = window.devicePixelRatio || 1;
+            
+            canvas.width = size * dpr;
+            canvas.height = size * dpr;
+            canvas.style.width = size + 'px';
+            canvas.style.height = size + 'px';
+            
+            ctx.scale(dpr, dpr);
+            
+            clockRadius = size / 2 - 10;
+            centerX = size / 2;
+            centerY = size / 2;
+        }
+
+        function setupEventListeners() {
+            // Mode toggle
+            document.getElementById('modeToggle').addEventListener('click', () => {
+                is24Hour = !is24Hour;
+                document.getElementById('modeToggle').classList.toggle('active', is24Hour);
+                render();
+            });
+
+            // Add button
+            document.getElementById('addBtn').addEventListener('click', () => openModal());
+
+            // Modal events
+            document.getElementById('btnCancel').addEventListener('click', closeModal);
+            document.getElementById('btnSave').addEventListener('click', saveEvent);
+            document.getElementById('btnDelete').addEventListener('click', deleteEvent);
+            document.getElementById('modalOverlay').addEventListener('click', (e) => {
+                if (e.target === e.currentTarget) closeModal();
+            });
+
+            // Category buttons
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                });
+            });
+
+            // Canvas interaction
+            canvas.addEventListener('mousemove', handleCanvasHover);
+            canvas.addEventListener('mouseleave', hideTooltip);
+            canvas.addEventListener('click', handleCanvasClick);
+
+            // Touch support
+            canvas.addEventListener('touchstart', handleTouch, { passive: false });
+        }
+
+        function updateDate() {
+            const now = new Date();
+            const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+            document.getElementById('currentDate').textContent = now.toLocaleDateString('zh-CN', options);
+        }
+
+        function renderLegend() {
+            const legend = document.getElementById('legend');
+            legend.innerHTML = Object.entries(CATEGORY_NAMES).map(([key, name]) => `
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: ${CATEGORY_COLORS[key]}"></div>
+                    <span>${name}</span>
+                </div>
+            `).join('');
+        }
+
+        function startClock() {
+            function tick() {
+                render();
+                animationId = requestAnimationFrame(tick);
+            }
+            tick();
+        }
+
+        function render() {
+            if (!ctx) return;
+            
+            const width = canvas.width / (window.devicePixelRatio || 1);
+            const height = canvas.height / (window.devicePixelRatio || 1);
+            
+            ctx.clearRect(0, 0, width, height);
+            
+            drawClockFace();
+            drawHourMarks();
+            drawMinuteMarks();
+            drawNumbers();
+            drawEventRings();
+            drawCurrentTimeIndicator();
+            drawHands();
+            drawCenterCap();
+        }
+
+        function drawClockFace() {
+            // Outer glow
+            const gradient = ctx.createRadialGradient(centerX, centerY, clockRadius * 0.8, centerX, centerY, clockRadius * 1.1);
+            gradient.addColorStop(0, 'rgba(26, 31, 53, 0)');
+            gradient.addColorStop(1, 'rgba(10, 14, 26, 0.5)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width / (window.devicePixelRatio || 1), canvas.height / (window.devicePixelRatio || 1));
+
+            // Main face
+            const faceGradient = ctx.createRadialGradient(
+                centerX - clockRadius * 0.3, 
+                centerY - clockRadius * 0.3, 
+                0,
+                centerX, 
+                centerY, 
+                clockRadius
+            );
+            faceGradient.addColorStop(0, '#252b45');
+            faceGradient.addColorStop(0.5, '#1a1f35');
+            faceGradient.addColorStop(1, '#12162a');
+
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, clockRadius, 0, Math.PI * 2);
+            ctx.fillStyle = faceGradient;
+            ctx.fill();
+
+            // Inner ring
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, clockRadius * 0.92, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(196, 163, 90, 0.15)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Outer decorative ring
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, clockRadius * 0.88, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(196, 163, 90, 0.1)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        function drawHourMarks() {
+            for (let i = 0; i < 12; i++) {
+                const angle = (i * 30 - 90) * Math.PI / 180;
+                const innerR = clockRadius * 0.82;
+                const outerR = clockRadius * 0.92;
+                
+                ctx.beginPath();
+                ctx.moveTo(centerX + Math.cos(angle) * innerR, centerY + Math.sin(angle) * innerR);
+                ctx.lineTo(centerX + Math.cos(angle) * outerR, centerY + Math.sin(angle) * outerR);
+                
+                // Major marks at 12, 3, 6, 9
+                if (i % 3 === 0) {
+                    ctx.strokeStyle = '#c4a35a';
+                    ctx.lineWidth = 2.5;
+                    ctx.lineCap = 'round';
+                } else {
+                    ctx.strokeStyle = 'rgba(184, 196, 208, 0.5)';
+                    ctx.lineWidth = 1.5;
+                    ctx.lineCap = 'round';
+                }
+                ctx.stroke();
+            }
+        }
+
+        function drawMinuteMarks() {
+            for (let i = 0; i < 60; i++) {
+                if (i % 5 === 0) continue; // Skip hour positions
+                
+                const angle = (i * 6 - 90) * Math.PI / 180;
+                const innerR = clockRadius * 0.87;
+                const outerR = clockRadius * 0.90;
+                
+                ctx.beginPath();
+                ctx.moveTo(centerX + Math.cos(angle) * innerR, centerY + Math.sin(angle) * innerR);
+                ctx.lineTo(centerX + Math.cos(angle) * outerR, centerY + Math.sin(angle) * outerR);
+                ctx.strokeStyle = 'rgba(184, 196, 208, 0.25)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+
+        function drawNumbers() {
+            const fontSize = clockRadius * 0.12;
+            ctx.font = `600 ${fontSize}px 'Playfair Display', serif`;
+            ctx.fillStyle = '#c4a35a';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            if (is24Hour) {
+                // 24 hour mode
+                for (let i = 0; i < 24; i++) {
+                    if (i % 2 !== 0) continue; // Only show even hours
+                    const angle = (i * 15 - 90) * Math.PI / 180;
+                    const r = clockRadius * 0.72;
+                    const x = centerX + Math.cos(angle) * r;
+                    const y = centerY + Math.sin(angle) * r;
+                    ctx.fillText(i.toString(), x, y);
+                }
+            } else {
+                // 12 hour mode with Roman numerals for major positions
+                const numerals = ['XII', 'III', 'VI', 'IX'];
+                const positions = [0, 3, 6, 9];
+                
+                for (let i = 0; i < 12; i++) {
+                    const angle = (i * 30 - 90) * Math.PI / 180;
+                    const r = clockRadius * 0.72;
+                    const x = centerX + Math.cos(angle) * r;
+                    const y = centerY + Math.sin(angle) * r;
+                    
+                    if (positions.includes(i)) {
+                        ctx.fillStyle = '#c4a35a';
+                        ctx.fillText(numerals[positions.indexOf(i)], x, y);
+                    } else {
+                        ctx.fillStyle = 'rgba(184, 196, 208, 0.7)';
+                        ctx.fillText(i === 0 ? '12' : i.toString(), x, y);
+                    }
+                }
+            }
+        }
+
+        function timeToAngle(hour, min) {
+            if (is24Hour) {
+                return (hour * 60 + min) / (24 * 60) * Math.PI * 2 - Math.PI / 2;
+            } else {
+                return ((hour % 12) * 60 + min) / (12 * 60) * Math.PI * 2 - Math.PI / 2;
+            }
+        }
+
+        function drawEventRings() {
+            const innerR = clockRadius * 0.55;
+            const ringWidth = clockRadius * 0.2;
+            
+            events.forEach(event => {
+                const startAngle = timeToAngle(event.startHour, event.startMin);
+                let endAngle = timeToAngle(event.endHour, event.endMin);
+                
+                // Handle same time or invalid range
+                if (endAngle <= startAngle) {
+                    endAngle = startAngle + 0.01;
+                }
+                
+                const color = CATEGORY_COLORS[event.category];
+                const isHovered = hoveredEventId === event.id;
+                const isActive = isEventActive(event);
+                
+                // Draw glow for active events
+                if (isActive) {
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, clockRadius * 0.65, startAngle, endAngle);
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = ringWidth + 8;
+                    ctx.lineCap = 'round';
+                    ctx.globalAlpha = 0.3 + Math.sin(Date.now() / 500) * 0.15;
+                    ctx.stroke();
+                    ctx.globalAlpha = 1;
+                }
+                
+                // Draw ring
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, innerR + ringWidth / 2, startAngle, endAngle);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = isHovered ? ringWidth + 4 : ringWidth;
+                ctx.lineCap = 'round';
+                ctx.globalAlpha = isHovered ? 0.9 : 0.65;
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+                
+                // Highlight hovered
+                if (isHovered) {
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, innerR + ringWidth / 2, startAngle, endAngle);
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.globalAlpha = 0.3;
+                    ctx.stroke();
+                    ctx.globalAlpha = 1;
+                }
+            });
+        }
+
+        function isEventActive(event) {
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentMin = now.getMinutes();
+            const currentTotal = currentHour * 60 + currentMin;
+            const startTotal = event.startHour * 60 + event.startMin;
+            const endTotal = event.endHour * 60 + event.endMin;
+            return currentTotal >= startTotal && currentTotal <= endTotal;
+        }
+
+        function drawCurrentTimeIndicator() {
+            const now = new Date();
+            const hour = now.getHours();
+            const min = now.getMinutes();
+            const sec = now.getSeconds();
+            const ms = now.getMilliseconds();
+            
+            // Smooth seconds
+            const smoothSec = sec + ms / 1000;
+            const smoothMin = min + smoothSec / 60;
+            const smoothHour = (hour % 12) + smoothMin / 60;
+            
+            const angle = is24Hour 
+                ? (hour + min / 60) / 24 * Math.PI * 2 - Math.PI / 2
+                : smoothHour / 12 * Math.PI * 2 - Math.PI / 2;
+            
+            // Indicator line
+            const innerR = clockRadius * 0.95;
+            const outerR = clockRadius * 1.0;
+            
+            ctx.beginPath();
+            ctx.moveTo(centerX + Math.cos(angle) * innerR, centerY + Math.sin(angle) * innerR);
+            ctx.lineTo(centerX + Math.cos(angle) * outerR, centerY + Math.sin(angle) * outerR);
+            ctx.strokeStyle = '#d45a5a';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+            
+            // Small dot at tip
+            ctx.beginPath();
+            ctx.arc(
+                centerX + Math.cos(angle) * outerR, 
+                centerY + Math.sin(angle) * outerR, 
+                3, 0, Math.PI * 2
+            );
+            ctx.fillStyle = '#d45a5a';
+            ctx.fill();
+        }
+
+        function drawHands() {
+            const now = new Date();
+            const hour = now.getHours();
+            const min = now.getMinutes();
+            const sec = now.getSeconds();
+            const ms = now.getMilliseconds();
+            
+            // Smooth time
+            const smoothSec = sec + ms / 1000;
+            const smoothMin = min + smoothSec / 60;
+            const smoothHour = (hour % 12) + smoothMin / 60;
+            
+            // Hour hand
+            const hourAngle = smoothHour / 12 * Math.PI * 2 - Math.PI / 2;
+            drawHand(hourAngle, clockRadius * 0.5, 4, '#c4a35a', 0.8);
+            
+            // Minute hand
+            const minAngle = smoothMin / 60 * Math.PI * 2 - Math.PI / 2;
+            drawHand(minAngle, clockRadius * 0.72, 2.5, '#c4a35a', 0.9);
+            
+            // Second hand
+            const secAngle = smoothSec / 60 * Math.PI * 2 - Math.PI / 2;
+            drawHand(secAngle, clockRadius * 0.78, 1.5, '#d45a5a', 1);
+        }
+
+        function drawHand(angle, length, width, color, opacity) {
+            const tailLength = length * 0.15;
+            
+            ctx.save();
+            ctx.globalAlpha = opacity;
+            
+            // Shadow
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+            ctx.shadowBlur = 8;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+            
+            // Hand body
+            ctx.beginPath();
+            ctx.moveTo(
+                centerX - Math.cos(angle) * tailLength, 
+                centerY - Math.sin(angle) * tailLength
+            );
+            ctx.lineTo(
+                centerX + Math.cos(angle) * length, 
+                centerY + Math.sin(angle) * length
+            );
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+            
+            ctx.restore();
+        }
+
+        function drawCenterCap() {
+            // Outer gold ring
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 8, 0, Math.PI * 2);
+            ctx.fillStyle = '#c4a35a';
+            ctx.fill();
+            
+            // Inner dark circle
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 5, 0, Math.PI * 2);
+            ctx.fillStyle = '#1a1f35';
+            ctx.fill();
+            
+            // Center dot
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 2, 0, Math.PI * 2);
+            ctx.fillStyle = '#c4a35a';
+            ctx.fill();
+        }
+
+        function handleCanvasHover(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const event = getEventAtPosition(x, y);
+            
+            if (event) {
+                hoveredEventId = event.id;
+                showTooltip(e.clientX, e.clientY, event);
+                canvas.style.cursor = 'pointer';
+            } else {
+                hoveredEventId = null;
+                hideTooltip();
+                canvas.style.cursor = 'default';
+            }
+        }
+
+        function handleCanvasClick(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const event = getEventAtPosition(x, y);
+            
+            if (event) {
+                openModal(event);
+            }
+        }
+
+        function handleTouch(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+            
+            const event = getEventAtPosition(x, y);
+            if (event) {
+                openModal(event);
+            }
+        }
+
+        function getEventAtPosition(x, y) {
+            const dx = x - centerX;
+            const dy = y - centerY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            // Check if within event ring area
+            const innerR = clockRadius * 0.55;
+            const outerR = clockRadius * 0.75;
+            
+            if (dist < innerR || dist > outerR) return null;
+            
+            // Get angle
+            let angle = Math.atan2(dy, dx) + Math.PI / 2;
+            if (angle < 0) angle += Math.PI * 2;
+            
+            // Check against events
+            for (const event of events) {
+                const startAngle = is24Hour 
+                    ? (event.startHour * 60 + event.startMin) / (24 * 60) * Math.PI * 2
+                    : ((event.startHour % 12) * 60 + event.startMin) / (12 * 60) * Math.PI * 2;
+                let endAngle = is24Hour 
+                    ? (event.endHour * 60 + event.endMin) / (24 * 60) * Math.PI * 2
+                    : ((event.endHour % 12) * 60 + event.endMin) / (12 * 60) * Math.PI * 2;
+                
+                if (endAngle <= startAngle) endAngle += Math.PI * 2;
+                
+                if (angle >= startAngle && angle <= endAngle) {
+                    return event;
+                }
+            }
+            
+            return null;
+        }
+
+        function showTooltip(x, y, event) {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.querySelector('.tooltip-title').textContent = event.title;
+            tooltip.querySelector('.tooltip-time').textContent = 
+                `${formatTime(event.startHour, event.startMin)} - ${formatTime(event.endHour, event.endMin)}`;
+            tooltip.querySelector('.tooltip-note').textContent = event.note || '';
+            tooltip.querySelector('.tooltip-note').style.display = event.note ? 'block' : 'none';
+            
+            tooltip.style.left = (x + 15) + 'px';
+            tooltip.style.top = (y - 10) + 'px';
+            tooltip.classList.add('visible');
+        }
+
+        function hideTooltip() {
+            document.getElementById('tooltip').classList.remove('visible');
+        }
+
+        function formatTime(hour, min) {
+            return `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
+        }
+
+        function renderEventsList() {
+            const list = document.getElementById('eventsList');
+            const now = new Date();
+            const currentTotal = now.getHours() * 60 + now.getMinutes();
+            
+            // Sort by start time
+            const sorted = [...events].sort((a, b) => 
+                (a.startHour * 60 + a.startMin) - (b.startHour * 60 + b.startMin)
+            );
+            
+            list.innerHTML = sorted.map(event => {
+                const startTotal = event.startHour * 60 + event.startMin;
+                const endTotal = event.endHour * 60 + event.endMin;
+                const isActive = currentTotal >= startTotal && currentTotal <= endTotal;
+                
+                return `
+                    <div class="event-card ${isActive ? 'active' : ''}" data-id="${event.id}">
+                        <div class="event-color" style="background: ${CATEGORY_COLORS[event.category]}"></div>
+                        <div class="event-info">
+                            <div class="event-title">${event.title}</div>
+                            <div class="event-time">${formatTime(event.startHour, event.startMin)} - ${formatTime(event.endHour, event.endMin)}</div>
+                        </div>
+                        <div class="event-actions">
+                            <button class="event-action-btn edit" title="编辑" onclick="openModal(events.find(e => e.id === ${event.id}))">
+                                <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                            </button>
+                            <button class="event-action-btn delete" title="删除" onclick="deleteEventById(${event.id})">
+                                <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openModal(event = null) {
+            const modal = document.getElementById('modalOverlay');
+            const title = document.getElementById('modalTitle');
+            const deleteBtn = document.getElementById('btnDelete');
+            
+            if (event) {
+                // Edit mode
+                title.textContent = '编辑事件';
+                editingEventId = event.id;
+                document.getElementById('eventTitle').value = event.title;
+                document.getElementById('startHour').value = event.startHour;
+                document.getElementById('startMin').value = event.startMin;
+                document.getElementById('endHour').value = event.endHour;
+                document.getElementById('endMin').value = event.endMin;
+                document.getElementById('eventNote').value = event.note || '';
+                
+                document.querySelectorAll('.category-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.category === event.category);
+                });
+                
+                deleteBtn.style.display = 'block';
+            } else {
+                // Add mode
+                title.textContent = '添加事件';
+                editingEventId = null;
+                document.getElementById('eventTitle').value = '';
+                document.getElementById('startHour').value = 9;
+                document.getElementById('startMin').value = 0;
+                document.getElementById('endHour').value = 10;
+                document.getElementById('endMin').value = 0;
+                document.getElementById('eventNote').value = '';
+                
+                document.querySelectorAll('.category-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.category === 'work');
+                });
+                
+                deleteBtn.style.display = 'none';
+            }
+            
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+            editingEventId = null;
+        }
+
+        function saveEvent() {
+            const title = document.getElementById('eventTitle').value.trim();
+            const startHour = parseInt(document.getElementById('startHour').value) || 0;
+            const startMin = parseInt(document.getElementById('startMin').value) || 0;
+            const endHour = parseInt(document.getElementById('endHour').value) || 0;
+            const endMin = parseInt(document.getElementById('endMin').value) || 0;
+            const note = document.getElementById('eventNote').value.trim();
+            const category = document.querySelector('.category-btn.active').dataset.category;
+            
+            if (!title) {
+                alert('请输入事件名称');
+                return;
+            }
+            
+            if (editingEventId) {
+                // Update existing
+                const index = events.findIndex(e => e.id === editingEventId);
+                if (index !== -1) {
+                    events[index] = {
+                        id: editingEventId,
+                        title,
+                        startHour,
+                        startMin,
+                        endHour,
+                        endMin,
+                        category,
+                        note
+                    };
+                }
+            } else {
+                // Add new
+                const newId = Math.max(0, ...events.map(e => e.id)) + 1;
+                events.push({
+                    id: newId,
+                    title,
+                    startHour,
+                    startMin,
+                    endHour,
+                    endMin,
+                    category,
+                    note
+                });
+            }
+            
+            saveEvents();
+            closeModal();
+        }
+
+        function deleteEvent() {
+            if (editingEventId) {
+                deleteEventById(editingEventId);
+                closeModal();
+            }
+        }
+
+        function deleteEventById(id) {
+            if (confirm('确定要删除这个事件吗？')) {
+                events = events.filter(e => e.id !== id);
+                saveEvents();
+            }
+        }
+
+        // Update events list every minute
+        setInterval(() => {
+            renderEventsList();
+            updateDate();
+        }, 60000);
+
+        // Initial render
+        renderEventsList();
+    </script>
+</body>
+</html>
